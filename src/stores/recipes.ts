@@ -46,6 +46,10 @@ export const useRecipesStore = defineStore('recipes', () => {
     }
   }
 
+  function addRecipe(recipe: Recipe) {
+    recipes.value.push(recipe)
+  }
+
   function resetCooking() {
     selectedRecipeIds.value = []
     currentStepIndex.value = {}
@@ -60,6 +64,7 @@ export const useRecipesStore = defineStore('recipes', () => {
     selectRecipe,
     deselectRecipe,
     nextStep,
+    addRecipe,
     resetCooking,
   }
 })

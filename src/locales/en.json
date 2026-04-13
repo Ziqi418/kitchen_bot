@@ -1,0 +1,47 @@
+{
+  "tabs": {
+    "inventory": "Inventory",
+    "recipes": "Recipes",
+    "cook": "Cook"
+  },
+  "inventory": {
+    "title": "My Kitchen",
+    "searchPlaceholder": "Search ingredients...",
+    "fridge": "Fridge",
+    "pantry": "Pantry",
+    "addToFridge": "Add to Fridge",
+    "addToPantry": "Add to Pantry",
+    "noFridge": "No fridge items match your search.",
+    "noPantry": "No pantry items match your search.",
+    "addIngredient": "Add Ingredient",
+    "name": "Name",
+    "quantity": "Quantity",
+    "unit": "Unit (g, pieces, …)",
+    "expiryDate": "Expiry date (optional)",
+    "add": "Add",
+    "cancel": "Cancel",
+    "status": {
+      "good": "Good",
+      "soon": "Soon",
+      "urgent": "Urgent"
+    },
+    "expiry": {
+      "noExpiry": "No expiry",
+      "expired": "Expired",
+      "tomorrow": "Expires tomorrow",
+      "inDays": "Expires in {days} days"
+    }
+  },
+  "recipes": {
+    "title": "What to Cook",
+    "useSoon": "Use soon: {items}",
+    "filters": {
+      "all": "All",
+      "urgent": "Use Urgent",
+      "quick": "Fewest Steps"
+    },
+    "meta": "{ingredients} ingredients · {steps} steps",
+    "cookThis": "Cook this",
+    "noRecipes": "No recipes match the current filter."
+  }
+}

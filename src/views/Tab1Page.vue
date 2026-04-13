@@ -2,7 +2,7 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>My Kitchen</ion-title>
+        <ion-title>{{ t('inventory.title') }}</ion-title>
         <ion-buttons slot="end">
           <ion-button @click="openAddAlert">
             <ion-icon slot="icon-only" :icon="addOutline" />
@@ -14,19 +14,16 @@
     <ion-content :fullscreen="true">
       <ion-searchbar
         v-model="searchQuery"
-        placeholder="Search ingredients..."
+        :placeholder="t('inventory.searchPlaceholder')"
         :debounce="200"
       />
 
       <!-- Fridge -->
       <ion-list-header>
-        <ion-label>🧊 Fridge</ion-label>
+        <ion-label>{{ t('inventory.fridge') }}</ion-label>
       </ion-list-header>
       <ion-list lines="full">
         <ion-item v-for="item in filteredFridge" :key="item.id">
-          <ion-avatar slot="start" :class="`avatar-${item.status}`">
-            <span>{{ itemEmoji(item.name) }}</span>
-          </ion-avatar>
           <ion-label>
             <h2>{{ item.name }}</h2>
             <p>{{ item.quantity }} {{ item.unit }} · {{ expiryLabel(item.expires_at) }}</p>
@@ -36,27 +33,24 @@
           </ion-badge>
         </ion-item>
         <ion-item v-if="filteredFridge.length === 0">
-          <ion-label color="medium">No fridge items match your search.</ion-label>
+          <ion-label color="medium">{{ t('inventory.noFridge') }}</ion-label>
         </ion-item>
       </ion-list>
 
       <!-- Pantry -->
       <ion-list-header>
-        <ion-label>🫙 Pantry</ion-label>
+        <ion-label>{{ t('inventory.pantry') }}</ion-label>
       </ion-list-header>
       <ion-list lines="full">
         <ion-item v-for="item in filteredPantry" :key="item.id">
-          <ion-avatar slot="start" class="avatar-good">
-            <span>{{ itemEmoji(item.name) }}</span>
-          </ion-avatar>
           <ion-label>
             <h2>{{ item.name }}</h2>
             <p>{{ item.quantity }} {{ item.unit }}</p>
           </ion-label>
-          <ion-badge slot="end" class="badge-good">Good</ion-badge>
+          <ion-badge slot="end" class="badge-good">{{ statusLabel('good') }}</ion-badge>
         </ion-item>
         <ion-item v-if="filteredPantry.length === 0">
-          <ion-label color="medium">No pantry items match your search.</ion-label>
+          <ion-label color="medium">{{ t('inventory.noPantry') }}</ion-label>
         </ion-item>
       </ion-list>
     </ion-content>
@@ -68,15 +62,17 @@ import { ref, computed } from 'vue'
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonList, IonListHeader, IonItem, IonLabel, IonBadge,
-  IonAvatar, IonSearchbar, IonButton, IonButtons, IonIcon,
+  IonSearchbar, IonButton, IonButtons, IonIcon,
   alertController,
 } from '@ionic/vue'
 import { addOutline } from 'ionicons/icons'
 import { useInventoryStore } from '@/stores/inventory'
 import type { ItemStatus } from '@/types'
+import { useI18n } from 'vue-i18n'
 
 const inventoryStore = useInventoryStore()
 const searchQuery = ref('')
+const { t } = useI18n()
 
 const filteredFridge = computed(() => {
   const q = searchQuery.value.toLowerCase()
@@ -89,72 +85,48 @@ const filteredPantry = computed(() => {
 })
 
 function statusLabel(status: ItemStatus) {
-  return status === 'urgent' ? 'Urgent' : status === 'soon' ? 'Soon' : 'Good'
+  return t(`inventory.status.${status}`)
 }
 
 function expiryLabel(expiresAt: string | null): string {
-  if (!expiresAt) return 'No expiry'
+  if (!expiresAt) return t('inventory.expiry.noExpiry')
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const expiry = new Date(expiresAt)
   const diffDays = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays <= 0) return 'Expired'
-  if (diffDays === 1) return 'Expires tomorrow'
-  return `Expires in ${diffDays} days`
+  if (diffDays <= 0) return t('inventory.expiry.expired')
+  if (diffDays === 1) return t('inventory.expiry.tomorrow')
+  return t('inventory.expiry.inDays', { days: diffDays })
 }
 
-const EMOJIS: Record<string, string> = {
-  'chicken breast': '🍗',
-  'whole milk': '🥛',
-  'eggs': '🥚',
-  'cheddar cheese': '🧀',
-  'white rice': '🍚',
-  'olive oil': '🫒',
-}
 
-function itemEmoji(name: string): string {
-  return EMOJIS[name.toLowerCase()] ?? '🥘'
-}
 
 async function openAddAlert() {
+  const addItem = (data: Record<string, string>, category: 'fridge' | 'pantry') => {
+    if (!data.name?.trim()) return false
+    inventoryStore.addItem({
+      id: crypto.randomUUID(),
+      name: data.name.trim(),
+      quantity: data.quantity ? Number(data.quantity) : null,
+      unit: data.unit?.trim() || null,
+      category,
+      expires_at: data.expires_at || null,
+      created_at: new Date().toISOString(),
+    })
+  }
+
   const alert = await alertController.create({
-    header: 'Add Ingredient',
+    header: t('inventory.addIngredient'),
     inputs: [
-      { name: 'name', type: 'text', placeholder: 'Name' },
-      { name: 'quantity', type: 'number', placeholder: 'Quantity' },
-      { name: 'unit', type: 'text', placeholder: 'Unit (g, pieces, …)' },
-      {
-        name: 'category',
-        type: 'radio',
-        label: 'Fridge',
-        value: 'fridge',
-        checked: true,
-      },
-      {
-        name: 'category',
-        type: 'radio',
-        label: 'Pantry',
-        value: 'pantry',
-      },
-      { name: 'expires_at', type: 'date', placeholder: 'Expiry date (optional)' },
+      { name: 'name', type: 'text', placeholder: t('inventory.name') },
+      { name: 'quantity', type: 'number', placeholder: t('inventory.quantity') },
+      { name: 'unit', type: 'text', placeholder: t('inventory.unit') },
+      { name: 'expires_at', type: 'date', placeholder: t('inventory.expiryDate') },
     ],
     buttons: [
-      { text: 'Cancel', role: 'cancel' },
-      {
-        text: 'Add',
-        handler: (data) => {
-          if (!data.name?.trim()) return false
-          inventoryStore.addItem({
-            id: crypto.randomUUID(),
-            name: data.name.trim(),
-            quantity: data.quantity ? Number(data.quantity) : null,
-            unit: data.unit?.trim() || null,
-            category: data.category ?? 'fridge',
-            expires_at: data.expires_at || null,
-            created_at: new Date().toISOString(),
-          })
-        },
-      },
+      { text: t('inventory.cancel'), role: 'cancel' },
+      { text: t('inventory.addToFridge'), handler: (data) => addItem(data, 'fridge') },
+      { text: t('inventory.addToPantry'), handler: (data) => addItem(data, 'pantry') },
     ],
   })
   await alert.present()

@@ -1,0 +1,47 @@
+{
+  "tabs": {
+    "inventory": "库存",
+    "recipes": "食谱",
+    "cook": "烹饪"
+  },
+  "inventory": {
+    "title": "我的厨房",
+    "searchPlaceholder": "搜索食材...",
+    "fridge": "冰箱",
+    "pantry": "储藏室",
+    "addToFridge": "加入冰箱",
+    "addToPantry": "加入储藏室",
+    "noFridge": "没有匹配搜索的冰箱物品。",
+    "noPantry": "没有匹配搜索的储藏室物品。",
+    "addIngredient": "添加食材",
+    "name": "名称",
+    "quantity": "数量",
+    "unit": "单位 (g, 件, …)",
+    "expiryDate": "到期日期 (可选)",
+    "add": "添加",
+    "cancel": "取消",
+    "status": {
+      "good": "良好",
+      "soon": "即将",
+      "urgent": "紧急"
+    },
+    "expiry": {
+      "noExpiry": "无到期",
+      "expired": "已过期",
+      "tomorrow": "明天到期",
+      "inDays": "{days} 天后到期"
+    }
+  },
+  "recipes": {
+    "title": "做什么菜",
+    "useSoon": "尽快使用: {items}",
+    "filters": {
+      "all": "全部",
+      "urgent": "使用紧急",
+      "quick": "最少步骤"
+    },
+    "meta": "{ingredients} 种食材 · {steps} 步",
+    "cookThis": "烹饪这个",
+    "noRecipes": "没有符合当前过滤器的食谱。"
+  }
+}

@@ -2,7 +2,12 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>What to Cook</ion-title>
+        <ion-title>{{ t('recipes.title') }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button @click="openAddRecipeModal">
+            <ion-icon slot="icon-only" :icon="addOutline" />
+          </ion-button>
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -11,7 +16,7 @@
       <div v-if="inventoryStore.urgentItems.length > 0" class="urgency-banner">
         <ion-icon :icon="warningOutline" />
         <span>
-          Use soon: {{ inventoryStore.urgentItems.map(i => i.name).join(', ') }}
+          {{ t('recipes.useSoon', { items: inventoryStore.urgentItems.map(i => i.name).join(', ') }) }}
         </span>
       </div>
 
@@ -30,15 +35,11 @@
 
       <!-- Recipe cards -->
       <div class="cards-container">
-        <ion-card v-for="recipe in filteredRecipes" :key="recipe.id" class="recipe-card">
-          <div :class="`card-banner card-banner-${recipe.id}`">
-            <span class="card-emoji">{{ recipeEmoji(recipe.title) }}</span>
-          </div>
+        <ion-card v-for="recipe in filteredRecipes" :key="recipe.id" class="recipe-card" @click="viewRecipe(recipe)">
           <ion-card-content>
             <h2 class="recipe-title">{{ recipe.title }}</h2>
             <p class="recipe-meta">
-              {{ recipe.requirements.length }} ingredients ·
-              {{ stepCount(recipe) }} steps
+              {{ t('recipes.meta', { ingredients: recipe.requirements.length, steps: stepCount(recipe) }) }}
             </p>
             <div class="ingredient-tags">
               <ion-badge
@@ -50,19 +51,12 @@
                 {{ req.ingredient_name }}
               </ion-badge>
             </div>
-            <ion-button
-              expand="block"
-              class="cook-btn"
-              @click="selectAndCook(recipe.id)"
-            >
-              Cook this
-            </ion-button>
           </ion-card-content>
         </ion-card>
 
         <div v-if="filteredRecipes.length === 0" class="empty-state">
           <ion-icon :icon="sadOutline" />
-          <p>No recipes match the current filter.</p>
+          <p>{{ t('recipes.noRecipes') }}</p>
         </div>
       </div>
     </ion-content>
@@ -74,21 +68,25 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonCard, IonCardContent, IonChip, IonBadge, IonButton, IonIcon,
+  IonCard, IonCardContent, IonChip, IonBadge, IonButton, IonButtons, IonIcon,
+  alertController, modalController,
 } from '@ionic/vue'
-import { warningOutline, sadOutline } from 'ionicons/icons'
+import { warningOutline, sadOutline, addOutline } from 'ionicons/icons'
 import { useInventoryStore } from '@/stores/inventory'
 import { useRecipesStore } from '@/stores/recipes'
-import type { Recipe } from '@/types'
+import type { Recipe, RecipeRequirement } from '@/types'
+import { useI18n } from 'vue-i18n'
+import RecipeDetailModal from '@/components/RecipeDetailModal.vue'
 
 const router = useRouter()
 const inventoryStore = useInventoryStore()
 const recipesStore = useRecipesStore()
+const { t } = useI18n()
 
 const filters = [
-  { label: 'All', value: 'all' },
-  { label: 'Use Urgent', value: 'urgent' },
-  { label: 'Fewest Steps', value: 'quick' },
+  { label: t('recipes.filters.all'), value: 'all' },
+  { label: t('recipes.filters.urgent'), value: 'urgent' },
+  { label: t('recipes.filters.quick'), value: 'quick' },
 ]
 const activeFilter = ref('all')
 
@@ -117,19 +115,68 @@ function isUrgent(name: string): boolean {
   return inventoryStore.urgentItems.some(i => i.name.toLowerCase() === name.toLowerCase())
 }
 
-const RECIPE_EMOJIS: Record<string, string> = {
-  'pan-seared chicken': '🍗',
-  'cheesy scrambled eggs': '🍳',
-  'chicken fried rice': '🍱',
+
+
+async function openAddRecipeModal() {
+  // for now, use alert
+  const alert = await alertController.create({
+    header: 'Add Recipe',
+    inputs: [
+      { name: 'title', type: 'text', placeholder: 'Recipe Title' },
+      { name: 'instructions', type: 'textarea', placeholder: 'Instructions (one step per line)' },
+      { name: 'ingredients', type: 'textarea', placeholder: 'Ingredients (one per line: name, quantity unit)' },
+      { name: 'source', type: 'url', placeholder: 'Source URL or leave blank' },
+    ],
+    buttons: [
+      { text: 'Cancel', role: 'cancel' },
+      {
+        text: 'Add',
+        handler: (data) => {
+          if (!data.title?.trim()) return false
+          const requirements: RecipeRequirement[] = []
+          if (data.ingredients) {
+            data.ingredients.split('\n').forEach((line: string) => {
+              const parts = line.split(',').map((s: string) => s.trim())
+              if (parts.length >= 1) {
+                requirements.push({
+                  recipe_id: '', // will set later
+                  ingredient_name: parts[0],
+                  quantity: parts[1] ? parseFloat(parts[1]) : null,
+                  unit: parts[2] || null,
+                })
+              }
+            })
+          }
+          const id = crypto.randomUUID()
+          requirements.forEach(req => req.recipe_id = id)
+          recipesStore.addRecipe({
+            id,
+            title: data.title.trim(),
+            instructions: data.instructions || null,
+            source: data.source || null,
+            created_at: new Date().toISOString(),
+            requirements,
+          })
+        },
+      },
+    ],
+  })
+  await alert.present()
 }
 
-function recipeEmoji(title: string): string {
-  return RECIPE_EMOJIS[title.toLowerCase()] ?? '🥘'
-}
-
-function selectAndCook(id: string) {
-  recipesStore.selectRecipe(id)
-  router.push('/tabs/tab3')
+async function viewRecipe(recipe: Recipe) {
+  const modal = await modalController.create({
+    component: RecipeDetailModal,
+    componentProps: {
+      recipe,
+      onCook: () => {
+        recipesStore.selectRecipe(recipe.id)
+        router.push('/tabs/tab3')
+      },
+    },
+    presentingElement: document.querySelector('ion-router-outlet') ?? undefined,
+  })
+  await modal.present()
 }
 </script>
 
@@ -163,21 +210,6 @@ function selectAndCook(id: string) {
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 
-.card-banner {
-  height: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.card-banner-r1 { background: linear-gradient(135deg, #ff8a65, #e64a19); }
-.card-banner-r2 { background: linear-gradient(135deg, #fff176, #f9a825); }
-.card-banner-r3 { background: linear-gradient(135deg, #80cbc4, #00796b); }
-
-.card-emoji {
-  font-size: 3rem;
-}
-
 .recipe-title {
   font-size: 1.2rem;
   font-weight: 700;
@@ -194,15 +226,10 @@ function selectAndCook(id: string) {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 14px;
 }
 
 .ingredient-tag {
   font-size: 0.75rem;
-}
-
-.cook-btn {
-  --border-radius: 12px;
 }
 
 .empty-state {
