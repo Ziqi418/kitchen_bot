@@ -94,6 +94,9 @@ const inventoryNames = computed(() => inventoryStore.items.map(i => i.name))
 const recommended = computed(() => recipesStore.recommendedRecipes(inventoryNames.value))
 
 const filteredRecipes = computed(() => {
+  if (activeFilter.value === 'all') {
+    return recipesStore.recipes
+  }
   let list = recommended.value
   if (activeFilter.value === 'urgent') {
     const urgentNames = new Set(inventoryStore.urgentItems.map(i => i.name.toLowerCase()))

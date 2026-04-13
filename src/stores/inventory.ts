@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { InventoryItem, IngredientRow, ItemStatus } from '@/types'
-import { mockIngredients } from '@/data/mock'
+import { supabase } from '@/lib/supabase'
 
 function computeStatus(expiresAt: string | null): ItemStatus {
   if (!expiresAt) return 'good'
@@ -19,19 +19,47 @@ function toInventoryItem(row: IngredientRow): InventoryItem {
 }
 
 export const useInventoryStore = defineStore('inventory', () => {
-  const items = ref<InventoryItem[]>(mockIngredients.map(toInventoryItem))
+  const items = ref<InventoryItem[]>([])
+  const loading = ref(false)
 
   const fridgeItems = computed(() => items.value.filter(i => i.category === 'fridge'))
   const pantryItems = computed(() => items.value.filter(i => i.category === 'pantry'))
   const urgentItems = computed(() => items.value.filter(i => i.status === 'urgent'))
 
-  function addItem(row: IngredientRow) {
-    items.value.push(toInventoryItem(row))
+  async function fetchItems() {
+    loading.value = true
+    const { data, error } = await supabase
+      .from('ingredients')
+      .select('*')
+      .order('created_at')
+    if (!error && data) {
+      items.value = data.map(toInventoryItem)
+    }
+    loading.value = false
   }
 
-  function removeItem(id: string) {
-    items.value = items.value.filter(i => i.id !== id)
+  async function addItem(row: IngredientRow) {
+    const { data, error } = await supabase
+      .from('ingredients')
+      .insert(row)
+      .select()
+      .single()
+    if (!error && data) {
+      items.value.push(toInventoryItem(data))
+    }
   }
 
-  return { items, fridgeItems, pantryItems, urgentItems, addItem, removeItem }
+  async function removeItem(id: string) {
+    const { error } = await supabase
+      .from('ingredients')
+      .delete()
+      .eq('id', id)
+    if (!error) {
+      items.value = items.value.filter(i => i.id !== id)
+    }
+  }
+
+  fetchItems()
+
+  return { items, loading, fridgeItems, pantryItems, urgentItems, addItem, removeItem, fetchItems }
 })

@@ -1,21 +1,32 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { Recipe } from '@/types'
-import { mockRecipes, mockRecipeRequirements } from '@/data/mock'
-
-const allRecipes: Recipe[] = mockRecipes.map(r => ({
-  ...r,
-  requirements: mockRecipeRequirements.filter(req => req.recipe_id === r.id),
-}))
+import type { Recipe, RecipeRequirement } from '@/types'
+import { supabase } from '@/lib/supabase'
 
 export const useRecipesStore = defineStore('recipes', () => {
-  const recipes = ref<Recipe[]>(allRecipes)
+  const recipes = ref<Recipe[]>([])
+  const loading = ref(false)
   const selectedRecipeIds = ref<string[]>([])
   const currentStepIndex = ref<Record<string, number>>({})
 
   const selectedRecipes = computed(() =>
     recipes.value.filter(r => selectedRecipeIds.value.includes(r.id))
   )
+
+  async function fetchRecipes() {
+    loading.value = true
+    const { data, error } = await supabase
+      .from('recipes')
+      .select('*, recipe_requirements(*)')
+      .order('created_at')
+    if (!error && data) {
+      recipes.value = data.map(r => ({
+        ...r,
+        requirements: (r.recipe_requirements ?? []) as RecipeRequirement[],
+      }))
+    }
+    loading.value = false
+  }
 
   function recommendedRecipes(inventoryNames: string[]): Recipe[] {
     const nameSet = new Set(inventoryNames.map(n => n.toLowerCase()))
@@ -46,7 +57,17 @@ export const useRecipesStore = defineStore('recipes', () => {
     }
   }
 
-  function addRecipe(recipe: Recipe) {
+  async function addRecipe(recipe: Recipe) {
+    const { requirements, ...recipeRow } = recipe
+    const { error: recipeError } = await supabase
+      .from('recipes')
+      .insert(recipeRow)
+    if (recipeError) return
+
+    if (requirements.length > 0) {
+      await supabase.from('recipe_requirements').insert(requirements)
+    }
+
     recipes.value.push(recipe)
   }
 
@@ -55,8 +76,11 @@ export const useRecipesStore = defineStore('recipes', () => {
     currentStepIndex.value = {}
   }
 
+  fetchRecipes()
+
   return {
     recipes,
+    loading,
     selectedRecipeIds,
     currentStepIndex,
     selectedRecipes,
@@ -66,5 +90,6 @@ export const useRecipesStore = defineStore('recipes', () => {
     nextStep,
     addRecipe,
     resetCooking,
+    fetchRecipes,
   }
 })
